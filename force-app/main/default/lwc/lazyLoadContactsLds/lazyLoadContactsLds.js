@@ -1,9 +1,6 @@
 import { LightningElement, track, wire } from 'lwc';
 import { getListUi } from 'lightning/uiListApi';
 import CONTACT_OBJECT from '@salesforce/schema/Contact';
-import NAME_FIELD from '@salesforce/schema/Contact.Name';
-import EMAIL_FIELD from '@salesforce/schema/Contact.Email';
-import PHONE_FIELD from '@salesforce/schema/Contact.Phone';
 
 const PAGE_SIZE = 10;
 
@@ -16,67 +13,67 @@ export default class LazyLoadContactsLds extends LightningElement {
     nextPageToken;
     done = false;
 
-    // initial wire to load records
     @wire(getListUi, {
         objectApiName: CONTACT_OBJECT,
         listViewApiName: 'AllContacts',
         pageSize: PAGE_SIZE
     })
-    wiredList({ error, data }) {
+    wiredContacts({ data, error }) {
         if (data) {
             this.contacts = data.records.records;
             this.nextPageToken = data.records.nextPageToken;
             this.done = !this.nextPageToken;
         } else if (error) {
-            console.error(error);
-        }
-    }
-
-    async loadMoreData() {
-        if (this.done || this.isLoading) return;
-        this.isLoading = true;
-
-        try {
-            const { records } = await getListUi({
-                objectApiName: CONTACT_OBJECT,
-                listViewApiName: 'AllContacts',
-                pageToken: this.nextPageToken,
-                pageSize: PAGE_SIZE
-            });
-            this.contacts = [...this.contacts, ...records.records];
-            this.nextPageToken = records.nextPageToken;
-            this.done = !this.nextPageToken;
-        } catch (error) {
-            console.error('Error loading more contacts:', error);
-        } finally {
-            this.isLoading = false;
+            console.error('Error loading contacts:', error);
         }
     }
 
     handleScroll(event) {
         const el = event.target;
         const bottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
-        if (bottom && !this.isLoading) {
-            this.loadMoreData();
+        if (bottom && !this.isLoading && !this.done) {
+            this.loadNextPage();
         }
+    }
+
+    loadNextPage() {
+        if (!this.nextPageToken) return;
+        this.isLoading = true;
+
+        // Instead of calling getListUi() imperatively, 
+        // we create a new wire context manually using dynamic wire params
+        this.pageParams = {
+            objectApiName: CONTACT_OBJECT,
+            listViewApiName: 'AllContacts',
+            pageToken: this.nextPageToken,
+            pageSize: PAGE_SIZE
+        };
+
+        this.loadMore();
+    }
+
+    @wire(getListUi, { objectApiName: CONTACT_OBJECT, listViewApiName: 'AllContacts', pageToken: '$pageParams.pageToken', pageSize: PAGE_SIZE })
+    loadMore({ data, error }) {
+        if (data) {
+            this.contacts = [...this.contacts, ...data.records.records];
+            this.nextPageToken = data.records.nextPageToken;
+            this.done = !this.nextPageToken;
+        } else if (error) {
+            console.error('Error loading next page:', error);
+        }
+        this.isLoading = false;
     }
 
     handleSearchChange(event) {
         this.searchKey = event.target.value.toLowerCase();
-        this.filterContacts();
-    }
-
-    filterContacts() {
-        const allContacts = this.contacts;
         if (this.searchKey === '') {
             this.noResults = false;
-            this.template.querySelector('div[onscroll]').scrollTop = 0;
-            return;
+        } else {
+            const filtered = this.contacts.filter(c =>
+                c.fields.Name.value.toLowerCase().includes(this.searchKey)
+            );
+            this.noResults = filtered.length === 0;
+            this.contacts = filtered;
         }
-        const filtered = allContacts.filter(con =>
-            con.fields.Name.value.toLowerCase().includes(this.searchKey)
-        );
-        this.noResults = filtered.length === 0;
-        this.contacts = filtered;
     }
 }
