@@ -19,7 +19,7 @@ private class LazyLoadContactsControllerTest {
     @IsTest
     static void testFetchContactsBasic() {
         Test.startTest();
-        List<Contact> contacts = LazyLoadContactsController.fetchContacts(0, 10);
+        List<Contact> contacts = LazyLoadContactsController.fetchContacts(0, 10, null);
         Test.stopTest();
 
         System.assertNotEquals(0, contacts.size(), 'Contacts should be returned');
@@ -29,8 +29,8 @@ private class LazyLoadContactsControllerTest {
     @IsTest
     static void testFetchContactsWithOffset() {
         Test.startTest();
-        List<Contact> firstBatch = LazyLoadContactsController.fetchContacts(0, 10);
-        List<Contact> secondBatch = LazyLoadContactsController.fetchContacts(10, 10);
+        List<Contact> firstBatch = LazyLoadContactsController.fetchContacts(0, 10, null);
+        List<Contact> secondBatch = LazyLoadContactsController.fetchContacts(10, 10, null);
         Test.stopTest();
 
         // Validate pagination
@@ -42,7 +42,7 @@ private class LazyLoadContactsControllerTest {
     static void testFetchContactsEmptyOffset() {
         // Use large offset to simulate end of list
         Test.startTest();
-        List<Contact> emptyList = LazyLoadContactsController.fetchContacts(1000, 10);
+        List<Contact> emptyList = LazyLoadContactsController.fetchContacts(1000, 10, null);
         Test.stopTest();
 
         System.assertEquals(0, emptyList.size(), 'Should return empty list when offset exceeds total count');
@@ -51,10 +51,25 @@ private class LazyLoadContactsControllerTest {
     @IsTest
     static void testGetTotalCount() {
         Test.startTest();
-        Integer count = LazyLoadContactsController.getTotalCount();
+        Integer count = LazyLoadContactsController.getTotalCount(null);
         Test.stopTest();
 
         System.assert(count > 0, 'Total contact count should be greater than 0');
         System.assertEquals(25, count, 'Expected 25 contacts created in test setup');
+    }
+
+    @IsTest
+    static void testSearchKeyFiltering() {
+        Test.startTest();
+        // Search for 'Contact1' should match Contact1, Contact10, Contact11, etc.
+        List<Contact> filtered = LazyLoadContactsController.fetchContacts(0, 50, 'Contact1');
+        Integer totalFiltered = LazyLoadContactsController.getTotalCount('Contact1');
+        Test.stopTest();
+
+        System.assert(filtered.size() > 0, 'Filtered results should be returned for search key');
+        System.assertEquals(filtered.size(), totalFiltered, 'getTotalCount should match number of filtered records returned');
+        for (Contact c: filtered) {
+            System.assert(c.Name.contains('Contact1'), 'Returned contact should match the search key in Name: ' + c.Name);
+        }
     }
 }
