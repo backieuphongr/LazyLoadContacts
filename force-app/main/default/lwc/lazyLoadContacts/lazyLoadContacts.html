@@ -1,0 +1,18 @@
+<template>
+    <lightning-card title="Lazy Load Contacts">
+        <div style="height:400px; overflow-y:auto;" onscroll={handleScroll}>
+            <template for:each={contacts} for:item="con">
+                <div key={con.Id} class="slds-p-around_small slds-border_bottom">
+                    <p class="slds-text-heading_small">{con.Name}</p>
+                    <p>{con.Email}</p>
+                    <p>{con.Phone}</p>
+                </div>
+            </template>
+            <template if:true={isLoading}>
+                <div class="slds-text-align_center slds-p-around_medium">
+                    <lightning-spinner alternative-text="Loading" size="small"></lightning-spinner>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>
